@@ -1,0 +1,31 @@
+{
+    "code": "nodejs-test",
+    "version": "1",
+    "name": "Test1",
+    "lead": "Just a test",
+    "description": "This is a test app",
+    "appStorePictures": [
+        {
+            "file": "paperstore-snapshot.png",
+            "primary": true
+        }
+    ],
+    "appPropertiesDefinitions": [],
+    "appWidgetsDefinitions": [
+        {
+            "name": "Test Widget",
+            "code": "testWidget",
+            "description": "This is a test widget",
+            "appWidgetPropertiesDefinitions": [
+                {
+                    "type": 3,
+                    "name": "clockSize",
+                    "prettyName": "clock size",
+                    "description": "clock size in px",
+                    "validationRegex": "",
+                    "defaultValue": "500"
+                }
+            ]
+        }
+    ]
+}

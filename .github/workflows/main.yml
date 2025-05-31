@@ -1,0 +1,99 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check and lint
+        run: |
+          npm run type-check
+          npm run lint
+
+      - name: Build application
+        env:
+          VITE_BASE_URL: ${{ secrets.VITE_BASE_URL }}
+          VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
+        run: npm run build
+
+      - name: Create release package
+        run: |
+          # Create release directory name with timestamp
+          RELEASE_DIR="release_$(date +%Y%m%d_%H%M%S)"
+          RELEASE_ZIP="${RELEASE_DIR}.zip"
+          
+          echo "Starting release packaging process..."
+          echo "Creating directory: $RELEASE_DIR"
+          
+          # Create release directory
+          mkdir -p $RELEASE_DIR
+          
+          # Copy required files
+          echo "Copying files to release directory..."
+          cp package.json $RELEASE_DIR/
+          cp index.js $RELEASE_DIR/
+          cp manifest.json $RELEASE_DIR/
+          cp -r dist $RELEASE_DIR/
+          
+          # Create zip archive
+          echo "Creating zip archive..."
+          zip -r $RELEASE_ZIP $RELEASE_DIR
+          
+          # Set environment variable for next step
+          echo "RELEASE_ZIP=$RELEASE_ZIP" >> $GITHUB_ENV
+          
+          echo "Release package created successfully: $RELEASE_ZIP"
+          echo "Package contains:"
+          echo "- package.json"
+          echo "- index.js" 
+          echo "- manifest.json"
+          echo "- dist/ (compiled application)"
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-package
+          path: ${{ env.RELEASE_ZIP }}
+          retention-days: 30
+
+      - name: Create GitHub Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.RELEASE_ZIP }}
+          asset_name: ${{ env.RELEASE_ZIP }}
+          asset_content_type: application/zip
